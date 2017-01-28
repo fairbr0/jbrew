@@ -1,0 +1,143 @@
+#!/bin/bash
+
+function quit {
+    exit
+}
+
+function help {
+    #print helper information
+    echo "recipie..."
+    echo "*****************************"
+    echo "About: jbrew is a lightweight java build tool, useful for when you need to quickly setup a project, without the need for an IDE."
+    echo "Usage:"
+    echo "  -> ./jbrew install -- By default, install jbrew to your /usr/local/bin directory by default. Then the library can be invoked by the 'jbrew' command. To use another path, pass in as an extra argument eg ./jbrew install ~/Documents"
+    echo "  -> jbrew init -- This will create the jbrew folder structure in the current working directory. This is as follows:"
+    echo "          |"
+    echo "          | -> build -- Output location of .class files"
+    echo "          | -> lib -- JAR libray locations"
+    echo "          | -> resources -- Location for your resource files"
+    echo "          ->   src -- Location for java sources files. "
+    echo " -> jbrew -- Will build the project files in src and output them to build."
+    echo " -> jbrew clean -- Remove all files in the build folder"
+    echo " -> jbrew \$main_class_name -- Run the java program."
+    echo ""
+    echo "While lightweight, jbrew supports and encourages packages. The 'src' folder should not be in a package namespace. However when running, you do not need to specify a path: jbrew will find the class for you."
+    echo "Any queries, message on Github :)"
+
+}
+
+function dir_setup {
+    echo "grinding beans..."
+    mkdir -p lib
+    mkdir -p src
+    mkdir -p src/test
+    mkdir -p resources
+    mkdir -p build
+    echo "...beans ready"
+}
+
+function install {
+    echo "opening beans..."
+    if test "$1" = ""; then
+        cp jbrew /usr/local/bin/jbrew
+    else
+        cp jbrew $1/jbrew
+    fi
+    echo "...beans open"
+    quit
+}
+
+function brew {
+    if [ ! -d "resources" ]; then
+        help
+        quit
+    fi
+
+    echo "brewing..."
+    cd lib
+    jars="$(find . -name '*.jar' -type f -print)"
+    cd ..
+    cp="."
+    for jar in $jars
+    do
+        jar=$(echo $jar | sed 's/^\.\///')
+        cp="$cp:lib/$jar"
+    done
+
+    classes="$(find ./build -name '*.class' -type f -print)"
+    for class in $classes
+    do
+        class=$(echo $class | sed 's/\.\/build//')
+        mv "build$class" ".$class"
+    done
+
+    srcs="$(find ./src -name '*.java' -type f -print)"
+    for src in $srcs
+    do
+        echo "brewing $src"
+    done
+    cpl="javac -cp \"$cp\" $srcs"
+    echo "$cpl"
+    $cpl
+
+    classes=$(find ./src -name '*.class' -type f -print)
+    for class in $classes
+    do
+        class=$(echo $class | sed 's/^..//')
+        path=$(echo $class | sed 's/\/[^\/]*\.class$/\//')
+        mkdir -p "build/$path"
+        mv $class ./build/$class
+    done
+    echo "...brewed!"
+    quit
+}
+
+function pour {
+    echo "pouring..."
+
+    cd lib
+    jars="$(find . -name '*.jar' -type f -print)"
+    cd ..
+    cp="."
+    for jar in $jars
+    do
+        cp="$cp:../../lib/$jar"
+    done
+
+    main="$(find . -name *$1.class -type f -print)"
+    main=$(echo $main | sed 's/.class//')
+    main=$(echo $main | sed 's/^\.\/build\/src\///')
+
+    echo $main
+    cd build/src
+    java -cp $cp $main
+    echo "...poured!"
+    quit
+}
+
+function clean {
+    echo "cleaning the pot..."
+    cd build
+    rm -rf *
+    cd ..
+    echo "...pot cleaned!"
+    quit
+}
+
+function process_command {
+    if test "$1" = "init"; then
+        dir_setup
+    elif test "$1" = "clean"; then
+        clean
+    elif test "$1" = ""; then
+        brew
+    elif test "$1" = "help"; then
+        help
+    elif test "$1" = "install"; then
+        install $2
+    else
+        pour $1
+    fi
+}
+
+process_command $1 $2
